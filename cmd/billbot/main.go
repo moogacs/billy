@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/geekmonkey/billbot/internal/analyze"
 	"github.com/geekmonkey/billbot/internal/anthropic"
@@ -36,6 +37,8 @@ var (
 	flagPromptWidth  int
 	flagColor        string
 	flagNoColor      bool
+	flagDaily        bool
+	flagMonthly      bool
 )
 
 func rootCmd() *cobra.Command {
@@ -44,8 +47,16 @@ func rootCmd() *cobra.Command {
 		Short: "Estimate Claude Code, Codex & Cursor API cost from local session logs",
 		Long: `Privacy-first CLI: estimate spend from local Claude Code (Anthropic), OpenAI Codex, and Cursor session files—no network calls. Figures come from embedded or custom pricing YAML; they are estimates, not invoices.
 
-For a directory, the default is to scan every session file, grouped by provider (Claude / Codex / Cursor). Use --latest-only to pick a single newest log instead. --provider limits which families are included; auto includes all three.`,
+For a directory, the default is to scan every session file, grouped by provider (Claude / Codex / Cursor). Use --latest-only to pick a single newest log instead. --provider limits which families are included; auto includes all three.
+
+Use --daily or --monthly to count only API completions whose timestamps fall in the current local calendar day or month (completions without a parseable time are omitted).`,
 		Args: cobra.MaximumNArgs(1),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if flagDaily && flagMonthly {
+				return fmt.Errorf("use only one of --daily and --monthly")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p := "."
 			if len(args) > 0 {
@@ -64,6 +75,8 @@ For a directory, the default is to scan every session file, grouped by provider 
 	root.PersistentFlags().IntVar(&flagPromptWidth, "prompt-width", 72, "max runes per prompt cell (8-32000)")
 	root.PersistentFlags().StringVar(&flagColor, "color", "auto", "auto|always|never: ANSI colors for table output (respects NO_COLOR, FORCE_COLOR)")
 	root.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "disable colors (same as --color=never)")
+	root.PersistentFlags().BoolVar(&flagDaily, "daily", false, "only completions from today (local calendar day)")
+	root.PersistentFlags().BoolVar(&flagMonthly, "monthly", false, "only completions from the current calendar month (local timezone)")
 
 	analyzeCmd := &cobra.Command{
 		Use:   "analyze [session.jsonl|cursor.db|project-dir]",
@@ -109,7 +122,8 @@ func runAnalyzePath(path string) error {
 	}
 
 	if st.IsDir() && !flagLatestOnly {
-		return runDefaultDirectoryAggregate(pn, pt, displayOptions())
+		active, start, end := timeFilterFromFlags()
+		return runDefaultDirectoryAggregate(pn, pt, displayOptions(), active, start, end)
 	}
 
 	sessionPath := abs
@@ -135,6 +149,9 @@ func runAnalyzePath(path string) error {
 		return err
 	}
 	rep := analyze.BuildReport(sessionPath, vendor, events, pt)
+	if active, start, end := timeFilterFromFlags(); active {
+		rep = analyze.FilterReportByWindow(rep, start, end)
+	}
 	return emit(rep, displayOptions())
 }
 
@@ -185,7 +202,19 @@ func cursorReadSQLite(p string) ([]model.NormalizedEvent, error) {
 	return cursor.ReadEventsFromSQLite(p)
 }
 
-func buildProviderSection(paths []string, v model.Vendor, read func(string) ([]model.NormalizedEvent, error), pt *pricing.Table, opts output.DisplayOptions) model.ProviderAggregateSection {
+func timeFilterFromFlags() (active bool, start, end time.Time) {
+	if flagDaily {
+		s, e := analyze.DayBounds(time.Now())
+		return true, s, e
+	}
+	if flagMonthly {
+		s, e := analyze.MonthBounds(time.Now())
+		return true, s, e
+	}
+	return false, time.Time{}, time.Time{}
+}
+
+func buildProviderSection(paths []string, v model.Vendor, read func(string) ([]model.NormalizedEvent, error), pt *pricing.Table, opts output.DisplayOptions, filterTime bool, winStart, winEnd time.Time) model.ProviderAggregateSection {
 	var sec model.ProviderAggregateSection
 	sec.Vendor = v
 	if len(paths) == 0 {
@@ -198,7 +227,13 @@ func buildProviderSection(paths []string, v model.Vendor, read func(string) ([]m
 			continue
 		}
 		rep := analyze.BuildReport(p, v, ev, pt)
+		if filterTime {
+			rep = analyze.FilterReportByWindow(rep, winStart, winEnd)
+		}
 		c, u, ans, unk := analyze.SumAnswers(rep)
+		if filterTime && ans == 0 {
+			continue
+		}
 		first := ""
 		if len(rep.Turns) > 0 {
 			first = rep.Turns[0].Prompt
@@ -230,29 +265,32 @@ func appendNonEmpty(out []model.ProviderAggregateSection, sec model.ProviderAggr
 	return append(out, sec)
 }
 
-func runDefaultDirectoryAggregate(pn provider.Name, pt *pricing.Table, opts output.DisplayOptions) error {
+func runDefaultDirectoryAggregate(pn provider.Name, pt *pricing.Table, opts output.DisplayOptions, filterTime bool, winStart, winEnd time.Time) error {
 	var sections []model.ProviderAggregateSection
 	switch pn {
 	case provider.Auto:
 		sections = appendNonEmpty(sections, buildProviderSection(
-			anthropic.AllAnthropicSessionPaths(flagAgents), model.VendorAnthropic, anthropic.ReadEvents, pt, opts))
+			anthropic.AllAnthropicSessionPaths(flagAgents), model.VendorAnthropic, anthropic.ReadEvents, pt, opts, filterTime, winStart, winEnd))
 		sections = appendNonEmpty(sections, buildProviderSection(
-			codex.CollectSessionJSONLPaths(), model.VendorOpenAI, codex.ReadEvents, pt, opts))
+			codex.CollectSessionJSONLPaths(), model.VendorOpenAI, codex.ReadEvents, pt, opts, filterTime, winStart, winEnd))
 		sections = appendNonEmpty(sections, buildProviderSection(
-			cursor.CollectWorkspaceStateDBs(), model.VendorCursor, cursorReadSQLite, pt, opts))
+			cursor.CollectWorkspaceStateDBs(), model.VendorCursor, cursorReadSQLite, pt, opts, filterTime, winStart, winEnd))
 	case provider.Anthropic:
 		sections = appendNonEmpty(sections, buildProviderSection(
-			anthropic.AllAnthropicSessionPaths(flagAgents), model.VendorAnthropic, anthropic.ReadEvents, pt, opts))
+			anthropic.AllAnthropicSessionPaths(flagAgents), model.VendorAnthropic, anthropic.ReadEvents, pt, opts, filterTime, winStart, winEnd))
 	case provider.OpenAI:
 		sections = appendNonEmpty(sections, buildProviderSection(
-			codex.CollectSessionJSONLPaths(), model.VendorOpenAI, codex.ReadEvents, pt, opts))
+			codex.CollectSessionJSONLPaths(), model.VendorOpenAI, codex.ReadEvents, pt, opts, filterTime, winStart, winEnd))
 	case provider.CursorProv:
 		sections = appendNonEmpty(sections, buildProviderSection(
-			cursor.CollectWorkspaceStateDBs(), model.VendorCursor, cursorReadSQLite, pt, opts))
+			cursor.CollectWorkspaceStateDBs(), model.VendorCursor, cursorReadSQLite, pt, opts, filterTime, winStart, winEnd))
 	default:
 		return fmt.Errorf("unknown provider %q", pn)
 	}
 	if len(sections) == 0 {
+		if filterTime {
+			return fmt.Errorf("no usage in the selected time window for provider %q (try without --daily/--monthly, or check timestamps in your logs)", pn)
+		}
 		return fmt.Errorf("no session files found for provider %q (try --latest-only or a different --provider)", pn)
 	}
 	var grand model.AggregateTotalsRow
