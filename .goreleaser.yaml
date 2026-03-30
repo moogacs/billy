@@ -42,10 +42,11 @@ checksum:
 
 brews:
   - name: billbot
-    tap:
+    repository:
       owner: moogacs
       name: homebrew-billbot
-    folder: Formula
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
     commit_author:
       name: goreleaserbot
       email: goreleaser@github.com
@@ -56,4 +57,3 @@ brews:
       bin.install "billbot"
     test: |
       system "#{bin}/billbot", "--version"
-    token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
