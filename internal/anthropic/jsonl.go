@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 type lineEnvelope struct {

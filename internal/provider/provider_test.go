@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geekmonkey/billbot/internal/anthropic"
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/anthropic"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 func TestParseProviderFlag_aliases(t *testing.T) {

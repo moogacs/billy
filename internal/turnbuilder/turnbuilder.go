@@ -3,7 +3,7 @@ package turnbuilder
 import (
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 // BuildTurns groups normalized events into turns: each EventUser starts a turn;

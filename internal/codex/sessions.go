@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/fsx"
+	"github.com/geekmonkey/billy/internal/fsx"
 )
 
 // CollectSessionJSONLPaths returns every *.jsonl under $CODEX_HOME/sessions (recursive).

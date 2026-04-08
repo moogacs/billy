@@ -1,18 +1,18 @@
 # https://goreleaser.com
 version: 2
 
-project_name: billbot
+project_name: billy
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: billbot
+  - id: billy
     env:
       - CGO_ENABLED=0
-    main: ./cmd/billbot
-    binary: billbot
+    main: ./cmd/billy
+    binary: billy
     goos:
       - linux
       - windows
@@ -41,19 +41,19 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 
 brews:
-  - name: billbot
+  - name: billy
     repository:
       owner: moogacs
-      name: homebrew-billbot
+      name: homebrew-billy
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     commit_author:
       name: goreleaserbot
       email: goreleaser@github.com
-    homepage: https://github.com/moogacs/billbot
+    homepage: https://github.com/moogacs/billy
     description: "Privacy-first CLI: read Claude Code, Codex, and Cursor logs on disk; apply YAML rates; print estimated USD."
     license: Apache-2.0
     install: |
-      bin.install "billbot"
+      bin.install "billy"
     test: |
-      system "#{bin}/billbot", "--version"
+      system "#{bin}/billy", "--version"

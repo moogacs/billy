@@ -1,6 +1,6 @@
 package analyze
 
-import "github.com/geekmonkey/billbot/internal/model"
+import "github.com/geekmonkey/billy/internal/model"
 
 // SumAnswers aggregates cost, token usage, and counts from priced answers.
 func SumAnswers(rep model.AnalyzeReport) (cost float64, usage model.UsageBreakdown, answers int, unknownModels int) {

@@ -1,4 +1,4 @@
-module github.com/geekmonkey/billbot
+module github.com/geekmonkey/billy
 
 go 1.23.0
 

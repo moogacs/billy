@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 // ReadEvents parses Codex CLI session JSONL (and compatible turn.completed lines).

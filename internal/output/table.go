@@ -5,7 +5,7 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 // PrintTable writes human-readable per-turn and per-answer tables to w.

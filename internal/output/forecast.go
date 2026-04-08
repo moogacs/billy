@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/analyze"
+	"github.com/geekmonkey/billy/internal/analyze"
 )
 
 // PrintForecast writes a human-readable weekly cap projection.

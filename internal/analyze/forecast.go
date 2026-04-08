@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 // ForecastMetric selects which scalar from priced answers drives the limit.

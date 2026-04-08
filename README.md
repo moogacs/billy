@@ -1,11 +1,11 @@
-**Billbot** is a cost calculator for **Claude Code**, **OpenAI Codex**, and **Cursor**  a small command-line tool that reads session files from your computer and prints **rough dollar estimates** for API-style token usage. Nothing is uploaded: it only opens local JSONL logs and Cursor’s SQLite stores, multiplies tokens by rates in a YAML file (built-in or yours), and shows tables or JSON.
+**Billy** is a cost calculator for **Claude Code**, **OpenAI Codex**, and **Cursor**  a small command-line tool that reads session files from your computer and prints **rough dollar estimates** for API-style token usage. Nothing is uploaded: it only opens local JSONL logs and Cursor’s SQLite stores, multiplies tokens by rates in a YAML file (built-in or yours), and shows tables or JSON.
 
 Use it when you want a quick sense of spend after a long agent session, or a roll-up across everything the tool can find on disk not when you need an exact invoice.
 
 > Totals are **estimates** from public list-style rates. Real bills depend on plans, seats, discounts, and how the vendor rounds.
 
 <p align="center">
-  <img src="assets/demo.gif" alt="Screen recording: billbot --help, then analyzing a sample Claude session with colors and prompts" width="920">
+  <img src="assets/demo.gif" alt="Screen recording: billy --help, then analyzing a sample Claude session with colors and prompts" width="920">
 </p>
 
 ---
@@ -15,17 +15,23 @@ Use it when you want a quick sense of spend after a long agent session, or a rol
 - **Stays local** — no network calls, no API keys for analysis.
 - **Three sources** — Anthropic (Claude Code) JSONL, Codex JSONL, Cursor `state.vscdb` / `store.db` (and Cursor JSONL).
 - **Two ways to run it** — either “everything I can see” (default when you pass a directory), or “this one session” (a path to a file, or a directory with `--latest-only`).
-- **Weekly cap forecaster** — `billbot forecast` projects when you might hit a USD or token budget from average hourly pace in the current local week (Monday–Monday); same log discovery as analyze.
+- **Weekly cap forecaster** — `billy forecast` projects when you might hit a USD or token budget from average hourly pace in the current local week (Monday–Monday); same log discovery as analyze.
 - **Easy to script** — `--format json` for stable output.
 - **Your pricing file** — optional `--pricing-file` when models or rates change.
 
 ## Setup
 
-**Install via Homebrew** (after you create a tap repo `moogacs/homebrew-billbot`):
+**Install via Homebrew**:
 
 ```bash
-brew tap moogacs/billbot
-brew install billbot
+brew tap moogacs/homebrew-billy
+brew install billy
+```
+
+If you are testing before your first tagged release, install from `HEAD`:
+
+```bash
+brew install --HEAD moogacs/homebrew-billy/billy
 ```
 
 **Install via Go**
@@ -33,28 +39,28 @@ brew install billbot
 You need [Go](https://go.dev/) **1.23** (see `go.mod`).
 
 ```bash
-go install github.com/geekmonkey/billbot/cmd/billbot@latest
+go install github.com/geekmonkey/billy/cmd/billy@latest
 ```
 
 Or clone and build:
 
 ```bash
-go build -o billbot ./cmd/billbot
-./billbot --help
-./billbot --provider cc
+go build -o billy ./cmd/billy
+./billy --help
+./billy --provider cc
 ```
 
 ## How to run it
 
-`billbot`, `billbot analyze`, and `billbot project` all boil down to “analyze this path.” If you omit the path, it uses the current directory (`.`).
+`billy`, `billy analyze`, and `billy project` all boil down to “analyze this path.” If you omit the path, it uses the current directory (`.`).
 
-**`billbot forecast`** uses the same path rules and provider scans, but instead of listing spend it estimates **when** a weekly cap might be reached. You set exactly one of `--weekly-limit-usd` or `--weekly-limit-tokens`. The week is your **local** Monday 00:00 through the following Monday; pace is usage so far divided by elapsed time (with a minimum one-hour denominator). Lines without parseable timestamps are ignored. Output is a rough hint, not a guarantee.
+**`billy forecast`** uses the same path rules and provider scans, but instead of listing spend it estimates **when** a weekly cap might be reached. You set exactly one of `--weekly-limit-usd` or `--weekly-limit-tokens`. The week is your **local** Monday 00:00 through the following Monday; pace is usage so far divided by elapsed time (with a minimum one-hour denominator). Lines without parseable timestamps are ignored. Output is a rough hint, not a guarantee.
 
 **1. Pass a directory, without `--latest-only` (the usual default)**  
-billbot does **not** walk your repo. It looks in the normal places each tool stores logs (see below), groups results by **Anthropic / OpenAI / Cursor**, lists each session with subtotals, then prints **grand totals**. If a vendor has no files, that section is skipped. Broken files are mentioned on **stderr** and skipped.
+billy does **not** walk your repo. It looks in the normal places each tool stores logs (see below), groups results by **Anthropic / OpenAI / Cursor**, lists each session with subtotals, then prints **grand totals**. If a vendor has no files, that section is skipped. Broken files are mentioned on **stderr** and skipped.
 
 **2. Pass a file, or a directory with `--latest-only`**  
-You get one session: **per turn** (your question and usage for that turn) and **per completion** (each API call), plus JSON if you ask for it. For a directory, billbot picks the newest matching log (Claude tries to match your project path first; with `auto` it may fall back to another vendor—watch **stderr** for hints).
+You get one session: **per turn** (your question and usage for that turn) and **per completion** (each API call), plus JSON if you ask for it. For a directory, billy picks the newest matching log (Claude tries to match your project path first; with `auto` it may fall back to another vendor—watch **stderr** for hints).
 
 ## Where it looks (by tool)
 
@@ -116,31 +122,31 @@ For **Anthropic**, short model ids also get a **prefix fallback** (e.g. `claude-
 ## Example commands
 
 ```bash
-# All sessions billbot can find, split by vendor
-./billbot
+# All sessions billy can find, split by vendor
+./billy
 
 # Only Claude logs
-./billbot --provider anthropic .
+./billy --provider anthropic .
 
 # One session tied to a repo (newest match)
-./billbot --latest-only ~/src/my-app
+./billy --latest-only ~/src/my-app
 
 # Explicit file
-./billbot analyze ~/.claude/projects/-Users-you-myapp/session-abc.jsonl
+./billy analyze ~/.claude/projects/-Users-you-myapp/session-abc.jsonl
 
 # Tables with prompts and forced colors (nice in recordings / some terminals)
-./billbot analyze testdata/anthropic/min.jsonl --show-prompts --color always
+./billy analyze testdata/anthropic/min.jsonl --show-prompts --color always
 
 # Pipe-friendly
-./billbot analyze session.jsonl --format json
+./billy analyze session.jsonl --format json
 
 # When might a $20/week budget be hit? (all discoverable sessions, all providers)
-./billbot forecast --weekly-limit-usd 20
+./billy forecast --weekly-limit-usd 20
 
 # Cursor only, token budget
-./billbot forecast --provider cursor --weekly-limit-tokens 500000
+./billy forecast --provider cursor --weekly-limit-tokens 500000
 
-./billbot forecast --weekly-limit-usd 15 --format json
+./billy forecast --weekly-limit-usd 15 --format json
 ```
 
 ## Custom pricing
@@ -148,7 +154,7 @@ For **Anthropic**, short model ids also get a **prefix fallback** (e.g. `claude-
 Copy **`internal/pricing/default.yaml`**, adjust `models` (and `model_aliases` if you rename ids). For Cursor-specific strings, use `cursor.model_aliases` pointing at OpenAI model keys.
 
 ```bash
-./billbot --pricing-file ~/config/billbot-pricing.yaml
+./billy --pricing-file ~/config/billy-pricing.yaml
 ```
 
 ## Regenerating the demo GIF

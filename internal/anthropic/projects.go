@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/fsx"
+	"github.com/geekmonkey/billy/internal/fsx"
 )
 
 // EncodeProjectPath maps an absolute project directory to Claude Code's folder name.

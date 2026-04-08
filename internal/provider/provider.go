@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/anthropic"
-	"github.com/geekmonkey/billbot/internal/codex"
-	"github.com/geekmonkey/billbot/internal/cursor"
-	"github.com/geekmonkey/billbot/internal/fsx"
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/anthropic"
+	"github.com/geekmonkey/billy/internal/codex"
+	"github.com/geekmonkey/billy/internal/cursor"
+	"github.com/geekmonkey/billy/internal/fsx"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 type dirPick struct {

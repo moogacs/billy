@@ -3,7 +3,7 @@ package pricing
 import (
 	"testing"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 func TestCostUSD_claudeSonnet46(t *testing.T) {

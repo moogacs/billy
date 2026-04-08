@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 // ReadEvents parses Cursor agent-transcript style JSONL (best effort).

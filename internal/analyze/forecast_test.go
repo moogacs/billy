@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 func TestForecastWeeklyLimit(t *testing.T) {

@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geekmonkey/billbot/internal/analyze"
-	"github.com/geekmonkey/billbot/internal/anthropic"
-	"github.com/geekmonkey/billbot/internal/codex"
-	"github.com/geekmonkey/billbot/internal/cursor"
-	"github.com/geekmonkey/billbot/internal/model"
-	"github.com/geekmonkey/billbot/internal/output"
-	"github.com/geekmonkey/billbot/internal/pricing"
-	"github.com/geekmonkey/billbot/internal/provider"
+	"github.com/geekmonkey/billy/internal/analyze"
+	"github.com/geekmonkey/billy/internal/anthropic"
+	"github.com/geekmonkey/billy/internal/codex"
+	"github.com/geekmonkey/billy/internal/cursor"
+	"github.com/geekmonkey/billy/internal/model"
+	"github.com/geekmonkey/billy/internal/output"
+	"github.com/geekmonkey/billy/internal/pricing"
+	"github.com/geekmonkey/billy/internal/provider"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -63,11 +63,14 @@ var (
 	flagMonthly           bool
 	flagWeeklyLimitUSD    float64
 	flagWeeklyLimitTokens int64
+	flagHeatmapMetric     string
+	flagHeatmapWeeks      int
+	flagHeatmapMonthly    bool
 )
 
 func rootCmd() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "billbot [path]",
+		Use:   "billy [path]",
 		Short: "Estimate Claude Code, Codex & Cursor API cost from local session logs",
 		Long: `Privacy-first CLI: estimate spend from local Claude Code (Anthropic), OpenAI Codex, and Cursor session files—no network calls. Figures come from embedded or custom pricing YAML; they are estimates, not invoices.
 
@@ -140,7 +143,32 @@ The week is the local calendar week Monday 00:00 → next Monday 00:00. Pace is 
 	forecastCmd.Flags().Float64Var(&flagWeeklyLimitUSD, "weekly-limit-usd", 0, "weekly spend cap in USD (priced like analyze)")
 	forecastCmd.Flags().Int64Var(&flagWeeklyLimitTokens, "weekly-limit-tokens", 0, "weekly token cap (sum of input+output+cache fields)")
 
-	root.AddCommand(analyzeCmd, projectCmd, forecastCmd)
+	heatmapCmd := &cobra.Command{
+		Use:   "heatmap [path]",
+		Short: "Show a calendar heatmap of token burn or cost (GitHub contribution-style)",
+		Long: `Renders a 7-row × N-week calendar grid where each cell represents one day, colored by spend or token usage intensity.
+
+Uses the same session discovery as analyze: optional path to a file or directory, otherwise all default sessions for the selected provider(s). Days with no parseable timestamps are shown as empty.`,
+		Args: cobra.MaximumNArgs(1),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if flagHeatmapWeeks > 0 && flagHeatmapMonthly {
+				return fmt.Errorf("use only one of --weeks and --monthly")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p := "."
+			if len(args) > 0 {
+				p = args[0]
+			}
+			return runHeatmap(p)
+		},
+	}
+	heatmapCmd.Flags().StringVar(&flagHeatmapMetric, "metric", "cost", "what to measure: cost or tokens")
+	heatmapCmd.Flags().IntVar(&flagHeatmapWeeks, "weeks", 52, "number of weeks to display (1–260)")
+	heatmapCmd.Flags().BoolVar(&flagHeatmapMonthly, "monthly", false, "show last 4 weeks only (same as --weeks 4)")
+
+	root.AddCommand(analyzeCmd, projectCmd, forecastCmd, heatmapCmd)
 	root.Version = buildVersion()
 	return root
 }
@@ -179,9 +207,9 @@ func runAnalyzePath(path string) error {
 		}
 		if usedFallback && (pn == provider.Auto || pn == provider.Anthropic) {
 			if pn == provider.Anthropic && v == model.VendorAnthropic {
-				fmt.Fprintf(os.Stderr, "billbot: no session for project %s; using latest Claude Code log: %s\n", abs, sessionPath)
+				fmt.Fprintf(os.Stderr, "billy: no session for project %s; using latest Claude Code log: %s\n", abs, sessionPath)
 			} else if pn == provider.Auto {
-				fmt.Fprintf(os.Stderr, "billbot: no Claude session for project %s; using latest %s log: %s\n", abs, provider.VendorLabel(v), sessionPath)
+				fmt.Fprintf(os.Stderr, "billy: no Claude session for project %s; using latest %s log: %s\n", abs, provider.VendorLabel(v), sessionPath)
 			}
 		}
 		pn = provider.ProviderName(v)
@@ -256,9 +284,9 @@ func runForecast(path string) error {
 			}
 			if usedFallback && (pn == provider.Auto || pn == provider.Anthropic) {
 				if pn == provider.Anthropic && v == model.VendorAnthropic {
-					fmt.Fprintf(os.Stderr, "billbot: no session for project %s; using latest Claude Code log: %s\n", abs, sessionPath)
+					fmt.Fprintf(os.Stderr, "billy: no session for project %s; using latest Claude Code log: %s\n", abs, sessionPath)
 				} else if pn == provider.Auto {
-					fmt.Fprintf(os.Stderr, "billbot: no Claude session for project %s; using latest %s log: %s\n", abs, provider.VendorLabel(v), sessionPath)
+					fmt.Fprintf(os.Stderr, "billy: no Claude session for project %s; using latest %s log: %s\n", abs, provider.VendorLabel(v), sessionPath)
 				}
 			}
 			pn = provider.ProviderName(v)
@@ -281,7 +309,7 @@ func collectAnswersAggregate(pn provider.Name, pt *pricing.Table, agents bool) (
 		for _, p := range paths {
 			ev, err := read(p)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "billbot: skip %s: %v\n", p, err)
+				fmt.Fprintf(os.Stderr, "billy: skip %s: %v\n", p, err)
 				continue
 			}
 			rep := analyze.BuildReport(p, v, ev, pt)
@@ -387,7 +415,7 @@ func buildProviderSection(paths []string, v model.Vendor, read func(string) ([]m
 	for _, p := range paths {
 		ev, err := read(p)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "billbot: skip %s: %v\n", p, err)
+			fmt.Fprintf(os.Stderr, "billy: skip %s: %v\n", p, err)
 			continue
 		}
 		rep := analyze.BuildReport(p, v, ev, pt)
@@ -484,6 +512,78 @@ func emitAggregateByProvider(rep model.AggregateByProviderReport, opts output.Di
 	default:
 		return fmt.Errorf("unknown format %q", flagFormat)
 	}
+}
+
+func runHeatmap(path string) error {
+	pt, err := pricing.Load(flagPricing)
+	if err != nil {
+		return err
+	}
+	pn, err := provider.ParseProviderFlag(flagProvider)
+	if err != nil {
+		return err
+	}
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	st, err := os.Stat(abs)
+	if err != nil {
+		return err
+	}
+
+	var answers []model.AnswerReport
+	if st.IsDir() && !flagLatestOnly {
+		answers, err = collectAnswersAggregate(pn, pt, flagAgents)
+		if err != nil {
+			return err
+		}
+	} else {
+		sessionPath := abs
+		if st.IsDir() {
+			var v model.Vendor
+			var usedFallback bool
+			sessionPath, v, usedFallback, err = provider.ResolveDirToSession(pn, abs, flagAgents)
+			if err != nil {
+				return err
+			}
+			if usedFallback && (pn == provider.Auto || pn == provider.Anthropic) {
+				fmt.Fprintf(os.Stderr, "billy: no session for project %s; using latest log: %s\n", abs, sessionPath)
+			}
+			pn = provider.ProviderName(v)
+		}
+		_, events, err := provider.ReadSession(pn, sessionPath)
+		if err != nil {
+			return err
+		}
+		rep := analyze.BuildReport(sessionPath, model.Vendor(pn), events, pt)
+		answers = rep.Answers
+	}
+
+	weeks := flagHeatmapWeeks
+	if flagHeatmapMonthly {
+		weeks = 4
+	}
+	if weeks <= 0 {
+		weeks = 52
+	}
+
+	now := time.Now().In(time.Local)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	from := today.AddDate(0, 0, -(weeks*7 - 1))
+
+	metric := flagHeatmapMetric
+	if metric != output.HeatmapMetricCost && metric != output.HeatmapMetricTokens {
+		metric = output.HeatmapMetricCost
+	}
+
+	buckets := analyze.BucketByDay(answers, from, today)
+	output.PrintHeatmap(os.Stdout, buckets, displayOptions(), output.HeatmapOptions{
+		Metric: metric,
+		Weeks:  weeks,
+	})
+	return nil
 }
 
 func emit(rep model.AnalyzeReport, opts output.DisplayOptions) error {

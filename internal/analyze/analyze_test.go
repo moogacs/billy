@@ -5,11 +5,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/geekmonkey/billbot/internal/anthropic"
-	"github.com/geekmonkey/billbot/internal/codex"
-	"github.com/geekmonkey/billbot/internal/cursor"
-	"github.com/geekmonkey/billbot/internal/model"
-	"github.com/geekmonkey/billbot/internal/pricing"
+	"github.com/geekmonkey/billy/internal/anthropic"
+	"github.com/geekmonkey/billy/internal/codex"
+	"github.com/geekmonkey/billy/internal/cursor"
+	"github.com/geekmonkey/billy/internal/model"
+	"github.com/geekmonkey/billy/internal/pricing"
 )
 
 func TestBuildReport_anthropicGolden(t *testing.T) {

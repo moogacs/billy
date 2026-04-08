@@ -1,9 +1,9 @@
 package analyze
 
 import (
-	"github.com/geekmonkey/billbot/internal/model"
-	"github.com/geekmonkey/billbot/internal/pricing"
-	"github.com/geekmonkey/billbot/internal/turnbuilder"
+	"github.com/geekmonkey/billy/internal/model"
+	"github.com/geekmonkey/billy/internal/pricing"
+	"github.com/geekmonkey/billy/internal/turnbuilder"
 )
 
 // BuildReport converts normalized events into priced turns and a flat answer list.

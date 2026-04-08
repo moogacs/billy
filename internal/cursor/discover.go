@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/geekmonkey/billbot/internal/fsx"
+	"github.com/geekmonkey/billy/internal/fsx"
 )
 
 // WorkspaceStorageRoot is Cursor's workspaceStorage directory (workspace-scoped DBs).

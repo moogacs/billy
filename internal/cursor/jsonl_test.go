@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 func TestReadEvents_minFixture(t *testing.T) {

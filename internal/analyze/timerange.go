@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geekmonkey/billbot/internal/model"
+	"github.com/geekmonkey/billy/internal/model"
 )
 
 // ParseLogTime parses timestamps from local session logs. Layouts are tried in order.
