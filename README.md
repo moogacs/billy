@@ -18,6 +18,19 @@ Use it when you want a quick sense of spend after a long agent session, or a rol
 - **Weekly cap forecaster** — `billy forecast` projects when you might hit a USD or token budget from average hourly pace in the current local week (Monday–Monday); same log discovery as analyze.
 - **Easy to script** — `--format json` for stable output.
 - **Your pricing file** — optional `--pricing-file` when models or rates change.
+- **Calendar heatmap** — `billy heatmap` shows a GitHub contribution–style view of daily cost or token burn over the last year (or fewer weeks).
+
+## Calendar heatmap
+
+`billy heatmap` aggregates the same local logs as analyze and prints a terminal heatmap: months across the top, weekdays down the side, and intensity by day. Use `--metric cost` or `--metric tokens`, and `--weeks` (or `--monthly` for the last four weeks).
+
+```bash
+billy heatmap --metric cost
+```
+
+<p align="center">
+  <img src="assets/heatmap.png" alt="Terminal heatmap: daily cost over 52 weeks with a less-to-more legend" width="920">
+</p>
 
 ## Setup
 
