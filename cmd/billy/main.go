@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/geekmonkey/billy/internal/output"
 	"github.com/geekmonkey/billy/internal/pricing"
 	"github.com/geekmonkey/billy/internal/provider"
+	"github.com/geekmonkey/billy/internal/proxy"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -66,6 +69,8 @@ var (
 	flagHeatmapMetric     string
 	flagHeatmapWeeks      int
 	flagHeatmapMonthly    bool
+	flagInitAgent         string
+	flagInitProject       bool
 )
 
 func rootCmd() *cobra.Command {
@@ -168,9 +173,83 @@ Uses the same session discovery as analyze: optional path to a file or directory
 	heatmapCmd.Flags().IntVar(&flagHeatmapWeeks, "weeks", 52, "number of weeks to display (1–260)")
 	heatmapCmd.Flags().BoolVar(&flagHeatmapMonthly, "monthly", false, "show last 4 weeks only (same as --weeks 4)")
 
-	root.AddCommand(analyzeCmd, projectCmd, forecastCmd, heatmapCmd)
+	proxyCmd := &cobra.Command{
+		Use:   "proxy <command> [args...]",
+		Short: "Run command and print compact output to save tokens",
+		Args:  cobra.MinimumNArgs(1),
+		RunE:  runProxy,
+	}
+	gainCmd := &cobra.Command{
+		Use:   "gain",
+		Short: "Show estimated token savings from billy proxy",
+		RunE:  runGain,
+	}
+	initCmd := &cobra.Command{
+		Use:   "init",
+		Short: "Install or remove billy runtime integration (global by default)",
+		RunE:  runInit,
+	}
+	initCmd.Flags().StringVar(&flagInitAgent, "agent", "all", "target agent: all | cursor | codex | claude")
+	initCmd.Flags().BoolVar(&flagInitProject, "project", false, "install in current repo instead of global user config")
+
+	proxyHookCmd := &cobra.Command{
+		Use:    "proxy-hook",
+		Short:  "Internal hook entrypoint for shell rewrite",
+		Hidden: true,
+		RunE:   runProxyHook,
+	}
+
+	root.AddCommand(analyzeCmd, projectCmd, forecastCmd, heatmapCmd, proxyCmd, gainCmd, initCmd, proxyHookCmd)
 	root.Version = buildVersion()
 	return root
+}
+
+func runProxy(cmd *cobra.Command, args []string) error {
+	res, err := proxy.Run(args)
+	if strings.TrimSpace(res.Output) != "" {
+		fmt.Fprintln(os.Stdout, res.Output)
+	}
+	if err == nil {
+		return nil
+	}
+	var exitErr proxy.CommandExitError
+	if errors.As(err, &exitErr) {
+		return fmt.Errorf("%w", err)
+	}
+	return err
+}
+
+func runGain(cmd *cobra.Command, args []string) error {
+	since := time.Now().AddDate(0, 0, -30)
+	sum, err := proxy.LoadGainSummary(since)
+	if err != nil {
+		return err
+	}
+	switch flagFormat {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{
+			"window_days": 30,
+			"summary":     sum,
+		})
+	case "table":
+		fmt.Fprintf(os.Stdout, "window: last %d days\n", 30)
+		fmt.Fprintf(os.Stdout, "proxy commands: %d\n", sum.Records)
+		fmt.Fprintf(os.Stdout, "raw tokens: %d\n", sum.RawTokens)
+		fmt.Fprintf(os.Stdout, "compact tokens: %d\n", sum.CompactTokens)
+		fmt.Fprintf(os.Stdout, "tokens saved: %d (%s%%)\n", sum.TokensSaved, strconv.FormatFloat(sum.SavedPercent, 'f', 1, 64))
+		if sum.Records == 0 {
+			fmt.Fprintln(os.Stdout, "note: no proxied shell commands recorded yet")
+			fmt.Fprintln(os.Stdout, "tip: run commands via 'billy proxy -- <cmd>' or enable hook rewrite with 'billy init'")
+		} else if sum.Records < 5 {
+			fmt.Fprintln(os.Stdout, "note: low sample size; run more proxied shell commands for stable savings stats")
+		}
+		fmt.Fprintln(os.Stdout, "tracked file: ~/.billy/proxy-usage.jsonl")
+		return nil
+	default:
+		return fmt.Errorf("unknown format %q", flagFormat)
+	}
 }
 
 func runAnalyzePath(path string) error {

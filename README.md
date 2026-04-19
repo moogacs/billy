@@ -14,6 +14,7 @@ Use it when you want a quick sense of spend after a long agent session, or a rol
 
 - **Stays local** — no network calls, no API keys for analysis.
 - **Three sources** — Anthropic (Claude Code) JSONL, Codex JSONL, Cursor `state.vscdb` / `store.db` (and Cursor JSONL).
+- **Proxy mode for token savings** — `billy proxy <cmd...>` runs shell commands and returns compact output for common high-volume workflows (`git`, `go test`, `ls`, `rg`/`grep`).
 - **Two ways to run it** — either “everything I can see” (default when you pass a directory), or “this one session” (a path to a file, or a directory with `--latest-only`).
 - **Weekly cap forecaster** — `billy forecast` projects when you might hit a USD or token budget from average hourly pace in the current local week (Monday–Monday); same log discovery as analyze.
 - **Easy to script** — `--format json` for stable output.
@@ -135,6 +136,23 @@ For **Anthropic**, short model ids also get a **prefix fallback** (e.g. `claude-
 ## Example commands
 
 ```bash
+# Runtime compaction (RTK-style)
+./billy proxy git status
+./billy proxy go test ./...
+./billy gain
+
+# Install globally for all supported agents (default)
+./billy init
+
+# Install only one agent
+./billy init --agent cursor
+./billy init --agent codex
+./billy init --agent claude
+
+# Project-only install (default is global)
+./billy init --project
+
+
 # All sessions billy can find, split by vendor
 ./billy
 
