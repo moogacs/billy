@@ -70,6 +70,7 @@ var (
 	flagHeatmapWeeks      int
 	flagHeatmapMonthly    bool
 	flagInitAgent         string
+	flagInitUninstall     bool
 	flagInitProject       bool
 )
 
@@ -190,6 +191,7 @@ Uses the same session discovery as analyze: optional path to a file or directory
 		RunE:  runInit,
 	}
 	initCmd.Flags().StringVar(&flagInitAgent, "agent", "all", "target agent: all | cursor | codex | claude")
+	initCmd.Flags().BoolVar(&flagInitUninstall, "uninstall", false, "remove previously installed billy integration")
 	initCmd.Flags().BoolVar(&flagInitProject, "project", false, "install in current repo instead of global user config")
 
 	proxyHookCmd := &cobra.Command{
